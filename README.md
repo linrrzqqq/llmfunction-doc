@@ -72,19 +72,34 @@ Doris 通过[资源机制](https://doris.apache.org/zh-CN/docs/dev/sql-manual/sq
 
 ## 快速上手
 
-> 具体步骤参考文档：_https://doris.apache.org/zh-CN/docs/dev/sql-manual/sql-functions/ai-functions/llm-functions/llm-function_
+> 以下示例均为最小实现，具体步骤参考文档：_https://doris.apache.org/zh-CN/docs/dev/sql-manual/sql-functions/ai-functions/llm-functions/llm-function_
 
 1. 配置 LLM 资源
 
+例 1：
 ```sql
-CREATE RESOURCE "llm_resource_name"
+CREATE RESOURCE 'openai_example'
 PROPERTIES (
     'type' = 'llm',
     'llm.provider_type' = 'openai',
-    'llm.endpoint' = 'https://endpoint_example',
-    'llm.model_name' = 'model_example',
-    'llm.api_key' = 'sk-xxx'
+    'llm.endpoint' = 'https://api.openai.com/v1/responses',
+    'llm.model_name' = 'gpt-4.1',
+    'llm.api_key' = 'xxxxx'
 );
+```
+
+例 2：
+```sql
+CREATE RESOURCE 'deepseek_example'
+  PROPERTIES
+  (
+  'type'='llm',
+  'llm.provider_type'='deepseek',
+  'llm.endpoint'='https://api.deepseek.com/chat/completions',
+  'llm.model_name' = 'deepseek-chat',
+  'llm.api_key' = 'xxxxx'
+  );
+
 ```
 
 2. 设置默认资源(可选) 
@@ -95,20 +110,40 @@ SET default_llm_resource='llm_resource_name';
 3. 执行 SQL 查询
 ```sql
 -- 若设置默认资源，则可省略resource_name变量
-SELECT LLM_SENTIMENT('test');
+SET default_llm_resource = 'llm_resource_name';
+SELECT LLM_SENTIMENT('test') AS ans;
+```
+
+```text
++---------+
+| ans     |
++---------+
+| neutral |
++---------+
+```
+
+```sql
 -- 若在函数调用中显式指定，则使用指定的resource
-SELECT LLM_TRANSLATE('llm_resource_name', 'test', 'Chinese');
+SELECT LLM_TRANSLATE('llm_resource_name', 'test', 'Chinese') AS ans;
+```
+
+```text
++--------+
+| ans    |
++--------+
+| 测试   |
++--------+
 ```
 
 ## 设计原理
 
 ### 函数执行流程
 
-![LLM函数执行流程图](https://i.ibb.co/d4CbVTF2/2025-08-05-16-22-20.png)
+![LLM函数执行流程图](https://i.ibb.co/mrXND0Kj/2025-08-06-14-12-18.png)
 
 说明：
 
-- <resource_name>：目前 Doris 只传入支持字符串常量
+- <resource_name>：目前 Doris 只支持传入字符串常量
 
 - 资源（Resource）中的参数仅作用于每一次请求的配置。
 
@@ -144,4 +179,4 @@ Doris LLM Functions 让 AI 能力与数据分析融合，无论是业务创新�
 展望未来，我们将在以下几点继续投入：
 
 - 支持 LLM_AGG Function；
-- 优化现有LLM的请求方式，提升高并发场景下的吞吐能力；
+- 优化现有LLM的请求方式，提升高并发场景下的吞吐能力。

@@ -91,14 +91,13 @@ PROPERTIES (
 例 2：
 ```sql
 CREATE RESOURCE 'deepseek_example'
-  PROPERTIES
-  (
-  'type'='llm',
-  'llm.provider_type'='deepseek',
-  'llm.endpoint'='https://api.deepseek.com/chat/completions',
-  'llm.model_name' = 'deepseek-chat',
-  'llm.api_key' = 'xxxxx'
-  );
+PROPERTIES (
+    'type'='llm',
+    'llm.provider_type'='deepseek',
+    'llm.endpoint'='https://api.deepseek.com/chat/completions',
+    'llm.model_name' = 'deepseek-chat',
+    'llm.api_key' = 'xxxxx'
+);
 
 ```
 
@@ -108,31 +107,46 @@ SET default_llm_resource='llm_resource_name';
 ```
 
 3. 执行 SQL 查询
-```sql
--- 若设置默认资源，则可省略resource_name变量
-SET default_llm_resource = 'llm_resource_name';
-SELECT LLM_SENTIMENT('test') AS ans;
-```
 
-```text
-+---------+
-| ans     |
-+---------+
-| neutral |
-+---------+
-```
+假设存在如下数据表，表中存储了与数据库相关的文档内容：
 
 ```sql
--- 若在函数调用中显式指定，则使用指定的resource
-SELECT LLM_TRANSLATE('llm_resource_name', 'test', 'Chinese') AS ans;
+CREATE TABLE doc_pool (
+    id  BIGINT,
+    c   TEXT
+) DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 10
+PROPERTIES (
+    "replication_num" = "1"
+);
 ```
 
+若需筛选与 Doris 相关性最高的 10 条记录，可采用如下查询：
+
+```sql
+SELECT
+    c,
+    CAST(LLM_GENERATE(CONCAT('Please score the relevance of the following document content to Apache Doris, with a floating-point number from 0 to 10, output only the score. Document:', c)) AS DOUBLE) AS score
+FROM doc_pool ORDER BY score DESC LIMIT 10;
+```
+
+该查询将利用 LLM 生成每条文档内容与 Apache Doris 的相关性评分，并按得分降序筛选前 10 条结果。
+
 ```text
-+--------+
-| ans    |
-+--------+
-| 测试   |
-+--------+
++---------------------------------------------------------------------------------------------------------------+-------+
+| c                                                                                                             | score |
++---------------------------------------------------------------------------------------------------------------+-------+
+| Apache Doris is a lightning-fast MPP analytical database that supports sub-second multidimensional analytics. |   9.5 |
+| In Doris, materialized views can automatically route queries, saving significant compute resources.           |   9.2 |
+| Doris's vectorized execution engine boosts aggregation query performance by 5–10×.                            |   9.2 |
+| Apache Doris Stream Load supports second-level real-time data ingestion.                                      |   9.2 |
+| Doris cost-based optimizer (CBO) generates better distributed execution plans.                                |   8.5 |
+| Enabling the Doris Pipeline execution engine noticeably improves CPU utilization.                             |   8.5 |
+| Doris supports Hive external tables for federated queries without moving data.                                |   8.5 |
+| Doris Light Schema Change lets you add or drop columns instantly.                                             |   8.5 |
+| Doris AUTO BUCKET automatically scales bucket count with data volume.                                         |   8.5 |
+| Using Doris inverted indexes enables second-level log searching.                                              |   8.5 |
++---------------------------------------------------------------------------------------------------------------+-------+
 ```
 
 ## 设计原理
